@@ -145,7 +145,7 @@ class HassPlayerControls:
             elif control["control_type"] == CONTROL_TYPE_VOLUME:
                 # volume control
                 new_state = state_obj.attributes.get(ATTR_MEDIA_VOLUME_LEVEL, 0) * 100
-            await self.mass.async_update_player_control(
+            await self.mass.update_player_control(
                 control["control_id"], new_state
             )
 
@@ -173,7 +173,7 @@ class HassPlayerControls:
             else:
                 cur_state = entity.state not in OFF_STATES
 
-            await self.mass.async_register_player_control(
+            await self.mass.register_player_control(
                 control_type=control["control_type"],
                 control_id=control["control_id"],
                 provider_name="Home Assistant",

@@ -1,11 +1,11 @@
 {
   "domain": "music_assistant",
   "name": "Music Assistant Media library manager",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/music_assistant",
   "requirements": [
-    "musicassistant-client==0.0.29"
+    "musicassistant-client==0.0.31"
   ],
   "codeowners": [
     "@marcelveldt"

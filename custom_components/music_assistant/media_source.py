@@ -192,42 +192,42 @@ async def async_create_item_listing(mass: MusicAssistant, media_item: dict):
     source = None
     items = []
     if media_item["media_type"] == "playlists":
-        items = await mass.async_get_library_playlists()
+        items = await mass.get_library_playlists()
     elif media_item["media_type"] == "artists":
-        items = await mass.async_get_library_artists()
+        items = await mass.get_library_artists()
     elif media_item["media_type"] == "albums":
-        items = await mass.async_get_library_albums()
+        items = await mass.get_library_albums()
     elif media_item["media_type"] == "tracks":
-        items = await mass.async_get_library_tracks()
+        items = await mass.get_library_tracks()
     elif media_item["media_type"] == "radios":
-        items = await mass.async_get_library_radios()
+        items = await mass.get_library_radios()
     elif media_item["media_type"] == MEDIA_TYPE_PLAYLIST:
         # playlist tracks
         source = await async_create_media_item_source(
             mass,
-            await mass.async_get_playlist(
+            await mass.get_playlist(
                 media_item["item_id"], media_item["provider"]
             ),
         )
-        items = await mass.async_get_playlist_tracks(
+        items = await mass.get_playlist_tracks(
             media_item["item_id"], media_item["provider"]
         )
     elif media_item["media_type"] == MEDIA_TYPE_ALBUM:
         # album tracks
         source = await async_create_media_item_source(
             mass,
-            await mass.async_get_album(media_item["item_id"], media_item["provider"]),
+            await mass.get_album(media_item["item_id"], media_item["provider"]),
         )
-        items = await mass.async_get_album_tracks(
+        items = await mass.get_album_tracks(
             media_item["item_id"], media_item["provider"]
         )
     elif media_item["media_type"] == MEDIA_TYPE_ARTIST:
         # artist albums
         source = await async_create_media_item_source(
             mass,
-            await mass.async_get_artist(media_item["item_id"], media_item["provider"]),
+            await mass.get_artist(media_item["item_id"], media_item["provider"]),
         )
-        items = await mass.async_get_artist_albums(
+        items = await mass.get_artist_albums(
             media_item["item_id"], media_item["provider"]
         )
     if not source:
@@ -270,7 +270,7 @@ async def async_create_media_item_source(mass: MusicAssistant, media_item: dict)
     media_class = CONTENT_TYPE_MEDIA_CLASS[media_type]
 
     # get image url
-    image = await mass.async_get_media_item_image_url(media_item)
+    image = await mass.get_media_item_image_url(media_item)
     # create title
     if media_type == "album":
         title = f'{media_item["artist"]["name"]} - {media_item["name"]}'

@@ -7,7 +7,7 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.helpers.typing import DiscoveryInfoType
-from musicassistant_client import async_get_token
+from musicassistant_client import login
 
 from .const import (
     CONF_POWER_CONTROL_ENTITIES,
@@ -20,8 +20,6 @@ from .player_controls import (
     CONTROL_TYPE_VOLUME,
     async_get_playercontrol_entities,
 )
-
-CONF_ADDRESS = "address"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,12 +54,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # try to authenticate
             try:
-                address = f"ws://{user_input[CONF_HOST]}:{user_input[CONF_PORT]}/ws"
-                token_info = await async_get_token(
-                    address=address,
+                token_info = await login(
+                    user_input[CONF_HOST],
                     username=user_input[CONF_USERNAME],
                     password=user_input[CONF_PASSWORD],
                     app_id="HomeAssistant",
+                    port=user_input[CONF_PORT]
                 )
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
@@ -85,9 +83,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # pylint: disable=attribute-defined-outside-init
         unique_id = discovery_info["properties"]["id"]
         await self.async_set_unique_id(unique_id)
-        self._address = discovery_info["properties"]["address"]
+        self._host = discovery_info["properties"]["hostname"]
+        self._port = discovery_info["properties"]["port"]
         self._name = discovery_info["properties"]["friendly_name"]
-        server_info = {CONF_ADDRESS: self._address}
+        server_info = {CONF_HOST: self._host, CONF_PORT: self._port}
         self._abort_if_unique_id_configured(updates=server_info)
         if discovery_info["properties"]["initialized"]:
             return await self.async_step_discovery_confirm()
@@ -97,17 +96,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             try:
-                token_info = await async_get_token(
-                    address=self._address,
+                token_info = await login(
+                    self._host,
                     username=user_input[CONF_USERNAME],
                     password=user_input[CONF_PASSWORD],
                     app_id="HomeAssistant",
+                    port=self._port
                 )
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "invalid_auth"
             else:
-                data = {CONF_ADDRESS: self._address, "token_info": token_info}
+                data = {CONF_HOST: self._host, CONF_PORT: self._port, "token_info": token_info}
                 return self.async_create_entry(title=DEFAULT_NAME, data=data)
 
         return self.async_show_form(

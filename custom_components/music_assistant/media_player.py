@@ -139,7 +139,7 @@ class MassPlayer(MediaPlayerEntity):
             )
         )
         # fetch queue state once
-        queue_data = await self._mass.async_get_player_queue(self.player_id)
+        queue_data = await self._mass.get_player_queue(self.player_id)
         self._queue_data = queue_data
         if queue_data["cur_item"] is not None:
             self._queue_cur_item = queue_data["cur_item"]
@@ -164,7 +164,7 @@ class MassPlayer(MediaPlayerEntity):
                 self._queue_cur_item = queue_data["cur_item"]
             else:
                 self._queue_cur_item = {}
-            self._cur_image = await self._mass.async_get_media_item_image_url(
+            self._cur_image = await self._mass.get_media_item_image_url(
                 self._queue_cur_item
             )
             self.async_write_ha_state()
@@ -304,13 +304,7 @@ class MassPlayer(MediaPlayerEntity):
     @property
     def state(self):
         """Return current playstate of the device."""
-        if not self._player_data["powered"]:
-            return STATE_OFF
-        if self._player_data["state"] == "playing":
-            return STATE_PLAYING
-        if self._player_data["state"] == "paused":
-            return STATE_PAUSED
-        return STATE_IDLE
+        return self._player_data["state"]
 
     @property
     def shuffle(self):
@@ -319,56 +313,60 @@ class MassPlayer(MediaPlayerEntity):
 
     async def async_media_play(self):
         """Send play command to device."""
-        await self._mass.async_player_command(self.player_id, "play")
+        await self._mass.player_command(self.player_id, "play")
 
     async def async_media_pause(self):
         """Send pause command to device."""
-        await self._mass.async_player_command(self.player_id, "pause")
+        await self._mass.player_command(self.player_id, "pause")
 
     async def async_media_stop(self):
         """Send stop command to device."""
-        await self._mass.async_player_command(self.player_id, "stop")
+        await self._mass.player_command(self.player_id, "stop")
 
     async def async_media_next_track(self):
         """Send next track command to device."""
-        await self._mass.async_player_command(self.player_id, "next")
+        await self._mass.player_command(self.player_id, "next")
 
     async def async_media_previous_track(self):
         """Send previous track command to device."""
-        await self._mass.async_player_command(self.player_id, "previous")
+        await self._mass.player_command(self.player_id, "previous")
 
     async def async_set_volume_level(self, volume):
         """Send new volume_level to device."""
         volume = int(volume * 100)
-        await self._mass.async_player_command(self.player_id, "volume_set", volume)
+        await self._mass.player_command(
+            self.player_id, "volume_set", {"volume_level": volume}
+        )
 
     async def async_mute_volume(self, mute=True):
         """Send mute/unmute to device."""
-        await self._mass.async_player_command(self.player_id, "volume_mute", mute)
+        await self._mass.player_command(
+            self.player_id, "volume_mute", {"is_muted": mute}
+        )
 
     async def async_volume_up(self):
         """Send new volume_level to device."""
-        await self._mass.async_player_command(self.player_id, "volume_up")
+        await self._mass.player_command(self.player_id, "volume_up")
 
     async def async_volume_down(self):
         """Send new volume_level to device."""
-        await self._mass.async_player_command(self.player_id, "volume_down")
+        await self._mass.player_command(self.player_id, "volume_down")
 
     async def async_turn_on(self):
         """Turn on device."""
-        await self._mass.async_player_command(self.player_id, "power_on")
+        await self._mass.player_command(self.player_id, "power_on")
 
     async def async_turn_off(self):
         """Turn off device."""
-        await self._mass.async_player_command(self.player_id, "power_off")
+        await self._mass.player_command(self.player_id, "power_off")
 
     async def async_set_shuffle(self, shuffle: bool):
         """Set shuffle state."""
-        await self._mass.async_player_queue_cmd_set_shuffle(self.player_id, shuffle)
+        await self._mass.player_queue_set_shuffle(self.player_id, shuffle)
 
     async def async_clear_playlist(self):
         """Clear players playlist."""
-        await self._mass.async_player_queue_cmd_clear(self.player_id)
+        await self._mass.player_queue_clear(self.player_id)
 
     async def async_play_media(self, media_type, media_id, **kwargs):
         """Send the play_media command to the media player."""
@@ -376,44 +374,46 @@ class MassPlayer(MediaPlayerEntity):
         if media_id.startswith(MASS_URI_SCHEME):
             # got uri from source/media browser
             media = await async_parse_uri(media_id)
-            await self._mass.async_play_media(self.player_id, dict(media), queue_opt)
+            await self._mass.play_media(self.player_id, dict(media), queue_opt)
         elif media_type in PLAYABLE_MEDIA_TYPES and ITEM_ID_SEPERATOR in media_id:
             # direct media item
             provider, item_id = media_id.split(ITEM_ID_SEPERATOR)
-            await self._mass.async_play_media(
+            await self._mass.play_media(
                 self.player_id,
                 {"media_type": media_type, "item_id": item_id, "provider": provider},
                 queue_opt,
             )
-        elif media_type in PLAYABLE_MEDIA_TYPES and ITEM_ID_SEPERATOR in media_id:
-            # direct media item
-            provider, item_id = media_id.split(ITEM_ID_SEPERATOR)
-            await self._mass.async_play_media(
-                self.player_id,
-                {"media_type": media_type, "item_id": item_id, "provider": provider},
-                queue_opt,
-            )
-        elif media_type == MEDIA_TYPE_PLAYLIST:
+        elif "/" not in media_id and media_type == MEDIA_TYPE_PLAYLIST:
             # library playlist by name
-            for playlist in await self._mass.async_get_library_playlists():
+            for playlist in await self._mass.get_library_playlists():
                 if playlist["name"] == media_id:
-                    await self._mass.async_play_media(
-                        self.player_id, playlist, queue_opt
-                    )
+                    await self._mass.play_media(self.player_id, playlist, queue_opt)
                     break
-        elif media_type == MEDIA_TYPE_RADIO:
+        elif "/" not in media_id and media_type == MEDIA_TYPE_RADIO:
             # library radio by name
-            for radio in await self._mass.async_get_library_radios():
+            for radio in await self._mass.get_library_radios():
                 if radio["name"] == media_id:
-                    await self._mass.async_play_media(
-                        self.player_id, radio, queue_opt
-                    )
+                    await self._mass.play_media(self.player_id, radio, queue_opt)
                     break
-        elif media_id.startswith("http"):
-            # plain url
-            await self._mass.async_cmd_play_uri(self.player_id, media_id)
+        elif "tts_proxy" in media_id:
+            # TTS broadcast message
+            await self._mass.play_alert(
+                self.player_id,
+                media_id,
+                announce=True,
+            )
+        elif "alert" in media_type:
+            # TTS/alert message
+            # TODO: also provide a service so the optional params like volume and announce are configurable
+            await self._mass.play_alert(
+                self.player_id,
+                media_id,
+                volume=5,
+                announce=False,
+            )
         else:
-            _LOGGER.warning("Unsupported media: %s - %s", media_type, media_id)
+            # assume supported uri
+            await self._mass.play_uri(self.player_id, media_id, queue_opt)
 
     async def async_browse_media(self, media_content_type=None, media_content_id=None):
         """Implement the websocket media browsing helper."""
