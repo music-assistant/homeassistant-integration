@@ -1,5 +1,6 @@
 """MediaPlayer platform for Music Assistant integration."""
 import logging
+from typing import Optional
 
 from homeassistant.components.media_player import MediaPlayerEntity
 from homeassistant.components.media_player.const import (
@@ -20,12 +21,14 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_SET,
     SUPPORT_VOLUME_STEP,
 )
+import voluptuous as vol
 from homeassistant.components.media_player.errors import BrowseError
-from homeassistant.const import STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING
+from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     async_dispatcher_send,
 )
+
 from homeassistant.util.dt import utcnow
 from musicassistant_client import MusicAssistant
 
@@ -65,6 +68,11 @@ SUPPORTED_FEATURES = (
 )
 
 MEDIA_TYPE_RADIO = "radio"
+SERVICE_PLAY_ALERT = "play_alert"
+ATTR_URL = "url"
+ATTR_VOLUME = "volume"
+ATTR_FORCE = "force"
+ATTR_ANNOUNCE = "announce"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,6 +109,20 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     async_dispatcher_connect(hass, DISPATCH_KEY_PLAYERS, async_update_media_player)
     async_dispatcher_connect(
         hass, DISPATCH_KEY_PLAYER_REMOVED, async_remove_media_player
+    )
+
+    # add service to play alert
+    platform = entity_platform.async_get_current_platform()
+
+    platform.async_register_entity_service(
+        SERVICE_PLAY_ALERT,
+        {
+            vol.Required(ATTR_URL): cv.string,
+            vol.Optional(ATTR_VOLUME, default=0): cv.positive_float,
+            vol.Optional(ATTR_ANNOUNCE, default=False): cv.boolean,
+            vol.Optional(ATTR_FORCE, default=True): cv.boolean,
+        },
+        "async_play_alert",
     )
 
 
@@ -377,6 +399,7 @@ class MassPlayer(MediaPlayerEntity):
             await self._mass.play_media(self.player_id, dict(media), queue_opt)
         elif media_type in PLAYABLE_MEDIA_TYPES and ITEM_ID_SEPERATOR in media_id:
             # direct media item
+            # TODO: Can't we just use the URI for the media browser ?!
             provider, item_id = media_id.split(ITEM_ID_SEPERATOR)
             await self._mass.play_media(
                 self.player_id,
@@ -397,23 +420,31 @@ class MassPlayer(MediaPlayerEntity):
                     break
         elif "tts_proxy" in media_id:
             # TTS broadcast message
-            await self._mass.play_alert(
-                self.player_id,
-                media_id,
-                announce=True,
-            )
-        elif "alert" in media_type:
-            # TTS/alert message
-            # TODO: also provide a service so the optional params like volume and announce are configurable
-            await self._mass.play_alert(
-                self.player_id,
-                media_id,
-                volume=5,
-                announce=False,
-            )
+            await self.async_play_alert(media_id, announce=True)
         else:
             # assume supported uri
             await self._mass.play_uri(self.player_id, media_id, queue_opt)
+
+    async def async_play_alert(
+        self, url: str, volume: int = 0, force: bool = True, announce: bool = False
+    ):
+        """
+        Play alert (e.g. tts message) on player.
+
+        Will pause the current playing queue and resume after the alert is played.
+
+            :param url: Url to the sound effect/tts message that should be played.
+            :param volume: Volume relative to current player's volume.
+            :param force: Play alert even if player is currently powered off.
+            :param announce: Announce the alert by prepending an alert sound.
+        """
+        await self._mass.play_alert(
+            player_id=self.player_id,
+            url=url,
+            volume=volume,
+            force=force,
+            announce=announce
+        )
 
     async def async_browse_media(self, media_content_type=None, media_content_id=None):
         """Implement the websocket media browsing helper."""

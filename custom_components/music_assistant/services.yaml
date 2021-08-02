@@ -1,0 +1,40 @@
+play_alert:
+  name: Play alert
+  description: Play alert sound on media player
+  target:
+    entity:
+      domain: media_player
+      integration: music_assistant
+  fields:
+    url:
+      name: URL
+      description: URL to the alert sound
+      required: true
+      example: "http://homeassistant:8123/local/dingdong.mp3"
+      selector:
+        text:
+    volume:
+      name: Volume
+      description: Force a specific volume to the player during the alert broadcast
+      required: false
+      example: 10
+      selector:
+        number:
+          min: 0
+          max: 100
+    force:
+      name: Force
+      description: Force the alert broadcast even if player is currently off.
+      required: false
+      example: true
+      default: true
+      selector:
+        boolean:
+    announce:
+      name: Announce
+      description: Announce the alert by prepending an alert sound.
+      required: false
+      example: true
+      default: false
+      selector:
+        boolean:
