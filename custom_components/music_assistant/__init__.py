@@ -51,7 +51,7 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     token_info = entry.data["token_info"]
     http_session = async_get_clientsession(hass, verify_ssl=False)
     mass = MusicAssistant(
-        host, token_info["token"], port=port, loop=hass.loop, client_session=http_session
+        host, token_info["token"], port=port, loop=hass.loop, aiohttp_session=http_session
     )
     hass.data[DOMAIN][entry.entry_id] = mass
 
