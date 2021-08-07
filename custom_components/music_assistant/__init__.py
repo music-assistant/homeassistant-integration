@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.typing import HomeAssistantType
@@ -15,6 +16,7 @@ from musicassistant_client import (
     EVENT_PLAYER_REMOVED,
     EVENT_QUEUE_UPDATED,
     MusicAssistant,
+    CannotConnect
 )
 
 from .const import (
@@ -78,8 +80,11 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
 
     mass.register_event_callback(handle_mass_event, SUBSCRIBE_EVENTS)
 
-    # connect to Music Assistant in a background task with auto reconnects etc.
-    hass.async_create_task(mass.connect())
+    # connect to Music Assistant
+    try:
+        await mass.connect()
+    except CannotConnect as err:
+        raise ConfigEntryNotReady from err
 
     async def async_options_updated(hass: HomeAssistantType, entry: ConfigEntry):
         """Handle options update."""
@@ -99,5 +104,5 @@ async def async_options_updated(hass: HomeAssistantType, entry: ConfigEntry):
 async def async_unload_entry(hass, entry):
     """Unload a config entry."""
     mass = hass.data[DOMAIN].pop(entry.entry_id)
-    await mass.close()
+    await mass.disconnect()
     return True
