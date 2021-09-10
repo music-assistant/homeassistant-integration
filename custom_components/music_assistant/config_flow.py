@@ -83,7 +83,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # pylint: disable=attribute-defined-outside-init
         unique_id = discovery_info["properties"]["id"]
         await self.async_set_unique_id(unique_id)
-        self._host = discovery_info["properties"]["hostname"]
+        self._host = discovery_info["properties"]["ip_address"]
         self._port = discovery_info["properties"]["port"]
         self._name = discovery_info["properties"]["friendly_name"]
         server_info = {CONF_HOST: self._host, CONF_PORT: self._port}

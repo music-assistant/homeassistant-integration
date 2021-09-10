@@ -262,7 +262,7 @@ class MassPlayer(MediaPlayerEntity):
     def media_content_id(self):
         """Content ID of current playing media."""
         if self._queue_cur_item:
-            return f'{self._queue_cur_item["provider"]}{ITEM_ID_SEPERATOR}{self._queue_cur_item["item_id"]}'
+            return self._queue_cur_item["uri"]
         return None
 
     @property
@@ -357,13 +357,13 @@ class MassPlayer(MediaPlayerEntity):
         """Send new volume_level to device."""
         volume = int(volume * 100)
         await self._mass.player_command(
-            self.player_id, "volume_set", {"volume_level": volume}
+            self.player_id, "volume_set", volume_level= volume
         )
 
     async def async_mute_volume(self, mute=True):
         """Send mute/unmute to device."""
         await self._mass.player_command(
-            self.player_id, "volume_mute", {"is_muted": mute}
+            self.player_id, "volume_mute", is_muted= mute
         )
 
     async def async_volume_up(self):
